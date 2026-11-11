@@ -10,7 +10,8 @@ Internal tool to convert any image format to WebP. Runs fully on your machine â€
 ## Setup (first time only)
 
 ```
-cd "C:\Users\Danish\Desktop\image to webp"
+git clone https://github.com/erdanish4/any-image-to-webp.git
+cd any-image-to-webp
 npm install
 ```
 
@@ -28,7 +29,7 @@ Then open **http://localhost:3000** in your browser. Keep the terminal window op
 Drop one or more images onto the page (or click to pick files). Each converted `.webp` downloads automatically, and the page shows original vs. new size with the % saved. There are also per-file Download links if you miss the auto-download.
 
 ### Bulk Folder tab
-1. Enter the **input folder** path (e.g. `C:\Users\Danish\Pictures\originals`).
+1. Enter the **input folder** path (e.g. `C:\Users\<you>\Pictures\originals`).
 2. Enter the **output folder** path (created automatically if it doesn't exist).
 3. Click **Convert folder** â€” every supported image in the input folder is converted and saved to the output folder. Originals are never modified.
 
