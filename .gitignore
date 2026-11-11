@@ -1,0 +1,15 @@
+node_modules/
+output/
+input/
+*.log
+
+# local test images
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.svg
+*.webp
+*.bmp
+*.tiff
+*.avif

@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image to WebP</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1a1d21; --muted: #6b7280;
+    --accent: #2563eb; --accent-soft: #dbeafe; --border: #e5e7eb;
+    --ok: #16a34a; --err: #dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111418; --card: #1a1f26; --text: #e8eaed; --muted: #9aa0a6;
+      --accent: #60a5fa; --accent-soft: #1e3a5f; --border: #2d333b;
+      --ok: #4ade80; --err: #f87171;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab {
+    flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--card); cursor: pointer; font-weight: 600; font-size: 14px;
+    color: var(--muted); text-align: center;
+  }
+  .tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+  .drop {
+    border: 2px dashed var(--border); border-radius: 12px; padding: 48px 20px;
+    text-align: center; color: var(--muted); cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .drop.over { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .drop strong { color: var(--text); display: block; font-size: 16px; margin-bottom: 4px; }
+  .drop.over strong { color: var(--accent); }
+  label { display: block; font-weight: 600; font-size: 13px; margin: 14px 0 4px; }
+  input[type=text], input[type=number] {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text); font-size: 14px;
+  }
+  .opt-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+  .opt-row label { margin: 0; flex: 1; }
+  .opt-row input[type=number] { width: 90px; }
+  button.primary {
+    margin-top: 16px; width: 100%; padding: 12px; border: 0; border-radius: 10px;
+    background: var(--accent); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  button.primary:disabled { opacity: .5; cursor: not-allowed; }
+  .hint { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .results { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .row {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 10px; font-size: 13.5px;
+  }
+  .row .grow { flex: 1; min-width: 0; }
+  .row .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .meta { color: var(--muted); font-size: 12.5px; }
+  .row .saving { color: var(--ok); font-weight: 600; white-space: nowrap; }
+  .row .error { color: var(--err); }
+  .row a.dl {
+    color: var(--accent); font-weight: 600; text-decoration: none; white-space: nowrap;
+  }
+  .summary { margin-top: 14px; font-size: 14px; font-weight: 600; }
+  .summary.ok { color: var(--ok); }
+  .summary.err { color: var(--err); }
+  .spinner {
+    display: inline-block; width: 14px; height: 14px; border: 2px solid var(--accent-soft);
+    border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite;
+    vertical-align: -2px; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Image → WebP Converter</h1>
+  <p class="sub">All formats supported. GIFs produce both animated and static WebP. Quality preserved, size reduced.</p>
+
+  <div class="tabs">
+    <div class="tab active" id="tabDrop">Drag &amp; Drop</div>
+    <div class="tab" id="tabBulk">Bulk Folder</div>
+  </div>
+
+  <!-- Drag & drop panel -->
+  <div class="card" id="panelDrop">
+    <div class="drop" id="dropZone">
+      <strong>Drop images here</strong>
+      or click to choose files (JPG, PNG, GIF, BMP, TIFF, AVIF, SVG…)
+    </div>
+    <input type="file" id="fileInput" multiple accept="image/*,.svg" class="hidden">
+    <div class="opt-row">
+      <label for="staticFrame">GIF static frame — which frame becomes the non-animated WebP (if higher than the GIF's frame count, the last frame is used)</label>
+      <input type="number" id="staticFrame" min="1" value="1">
+    </div>
+    <div class="results" id="dropResults"></div>
+    <div class="summary" id="dropSummary"></div>
+  </div>
+
+  <!-- Bulk panel -->
+  <div class="card hidden" id="panelBulk">
+    <label for="inputDir">Input folder</label>
+    <input type="text" id="inputDir" placeholder="C:\Users\Danish\Pictures\originals">
+    <label for="outputDir">Output folder</label>
+    <input type="text" id="outputDir" placeholder="C:\Users\Danish\Pictures\webp">
+    <div class="hint">Every supported image in the input folder is converted and saved to the output folder (created if missing). Originals are untouched.</div>
+    <div class="opt-row">
+      <label for="bulkStaticFrame">GIF static frame — which frame becomes the non-animated WebP (if higher than the GIF's frame count, the last frame is used)</label>
+      <input type="number" id="bulkStaticFrame" min="1" value="1">
+    </div>
+    <button class="primary" id="bulkBtn">Convert folder</button>
+    <div class="results" id="bulkResults"></div>
+    <div class="summary" id="bulkSummary"></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+// --- Tabs ---
+function showTab(drop) {
+  $("tabDrop").classList.toggle("active", drop);
+  $("tabBulk").classList.toggle("active", !drop);
+  $("panelDrop").classList.toggle("hidden", !drop);
+  $("panelBulk").classList.toggle("hidden", drop);
+}
+$("tabDrop").onclick = () => showTab(true);
+$("tabBulk").onclick = () => showTab(false);
+
+function fmtSize(bytes) {
+  if (bytes >= 1048576) return (bytes / 1048576).toFixed(2) + " MB";
+  if (bytes >= 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return bytes + " B";
+}
+function savingPct(orig, out) {
+  if (!orig) return "";
+  const pct = Math.round((1 - out / orig) * 100);
+  return pct > 0 ? `−${pct}%` : `+${-pct}%`;
+}
+
+// --- Drag & drop mode ---
+const dropZone = $("dropZone");
+dropZone.onclick = () => $("fileInput").click();
+$("fileInput").onchange = (e) => { if (e.target.files.length) convertFiles(e.target.files); e.target.value = ""; };
+["dragenter","dragover"].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add("over"); }));
+["dragleave","drop"].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove("over"); }));
+dropZone.addEventListener("drop", e => { if (e.dataTransfer.files.length) convertFiles(e.dataTransfer.files); });
+
+async function convertFiles(fileList) {
+  const results = $("dropResults"), summary = $("dropSummary");
+  results.innerHTML = "";
+  summary.className = "summary";
+  summary.innerHTML = '<span class="spinner"></span>Converting ' + fileList.length + " file(s)…";
+
+  const form = new FormData();
+  form.append("staticFrame", $("staticFrame").value || "1");
+  for (const f of fileList) form.append("images", f);
+
+  try {
+    const res = await fetch("/api/convert", { method: "POST", body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Conversion failed");
+
+    let ok = 0, failed = 0;
+    for (const r of data.results) {
+      if (r.error) {
+        failed++;
+        results.insertAdjacentHTML("beforeend",
+          `<div class="row"><div class="grow"><div class="name">${esc(r.original)}</div>
+           <div class="error">${esc(r.error)}</div></div></div>`);
+        continue;
+      }
+      ok++;
+      for (const f of r.files) {
+        const blobUrl = base64ToUrl(f.data);
+        results.insertAdjacentHTML("beforeend",
+          `<div class="row">
+             <div class="grow">
+               <div class="name">${esc(f.name)}</div>
+               <div class="meta">${esc(r.original)} · ${fmtSize(r.originalSize)} → ${fmtSize(f.size)}</div>
+             </div>
+             <span class="saving">${savingPct(r.originalSize, f.size)}</span>
+             <a class="dl" href="${blobUrl}" download="${esc(f.name)}">Download</a>
+           </div>`);
+        // auto-download each converted file
+        const a = document.createElement("a");
+        a.href = blobUrl; a.download = f.name;
+        document.body.appendChild(a); a.click(); a.remove();
+      }
+    }
+    summary.className = "summary " + (failed ? "err" : "ok");
+    summary.textContent = `Done — ${ok} converted${failed ? ", " + failed + " failed" : ""}. Files auto-downloaded (also available via the Download links).`;
+  } catch (err) {
+    summary.className = "summary err";
+    summary.textContent = "Error: " + err.message;
+  }
+}
+
+function base64ToUrl(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes], { type: "image/webp" }));
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+// --- Bulk mode ---
+$("bulkBtn").onclick = async () => {
+  const inputDir = $("inputDir").value.trim();
+  const outputDir = $("outputDir").value.trim();
+  const results = $("bulkResults"), summary = $("bulkSummary"), btn = $("bulkBtn");
+  results.innerHTML = "";
+  if (!inputDir || !outputDir) {
+    summary.className = "summary err";
+    summary.textContent = "Please fill both folder paths.";
+    return;
+  }
+  btn.disabled = true;
+  summary.className = "summary";
+  summary.innerHTML = '<span class="spinner"></span>Converting folder…';
+
+  try {
+    const res = await fetch("/api/convert-folder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ inputDir, outputDir, staticFrame: $("bulkStaticFrame").value || "1" }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Conversion failed");
+
+    let ok = 0, failed = 0, inBytes = 0, outBytes = 0;
+    for (const r of data.results) {
+      if (r.error) {
+        failed++;
+        results.insertAdjacentHTML("beforeend",
+          `<div class="row"><div class="grow"><div class="name">${esc(r.original)}</div>
+           <div class="error">${esc(r.error)}</div></div></div>`);
+        continue;
+      }
+      ok++;
+      inBytes += r.originalSize;
+      for (const f of r.files) {
+        outBytes += f.size;
+        results.insertAdjacentHTML("beforeend",
+          `<div class="row">
+             <div class="grow">
+               <div class="name">${esc(f.name)}</div>
+               <div class="meta">${esc(r.original)} · ${fmtSize(r.originalSize)} → ${fmtSize(f.size)}</div>
+             </div>
+             <span class="saving">${savingPct(r.originalSize, f.size)}</span>
+           </div>`);
+      }
+    }
+    summary.className = "summary " + (failed ? "err" : "ok");
+    summary.textContent = data.total === 0
+      ? "No supported images found in the input folder."
+      : `Done — ${ok}/${data.total} converted${failed ? ", " + failed + " failed" : ""}. Total ${fmtSize(inBytes)} → ${fmtSize(outBytes)}. Saved to the output folder.`;
+  } catch (err) {
+    summary.className = "summary err";
+    summary.textContent = "Error: " + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
+</script>
+</body>
+</html>
