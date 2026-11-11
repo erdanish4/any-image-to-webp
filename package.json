@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Internal tool: convert any image to WebP (GIFs produce animated + static WebP)",
   "main": "server.js",
+  "license": "MIT",
   "scripts": {
     "start": "node server.js"
   },

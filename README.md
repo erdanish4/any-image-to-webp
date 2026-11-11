@@ -1,6 +1,6 @@
 # Image → WebP Converter
 
-Internal tool to convert any image format to WebP. Runs fully on your machine — no accounts, no API keys, no payments.
+A simple, free tool to convert any image format to WebP. Runs fully on your machine — no accounts, no API keys, no payments.
 
 ## Requirements
 
@@ -73,6 +73,10 @@ Install the free [Google Drive for Desktop](https://www.google.com/drive/downloa
 | `server.js` | Local Express server + the two API endpoints |
 | `converter.js` | Conversion logic (sharp), quality settings |
 | `public/index.html` | The web page (both tabs) |
+
+## License
+
+MIT — free to use, modify, and distribute. See [LICENSE](LICENSE).
 
 ## Troubleshooting
 
