@@ -102,6 +102,7 @@
       <input type="number" id="staticFrame" min="1" value="1">
     </div>
     <div class="results" id="dropResults"></div>
+    <button class="primary hidden" id="zipBtn">Download all as ZIP</button>
     <div class="summary" id="dropSummary"></div>
   </div>
 
@@ -122,6 +123,7 @@
   </div>
 </div>
 
+<script src="/vendor/jszip.min.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 
@@ -154,9 +156,17 @@ $("fileInput").onchange = (e) => { if (e.target.files.length) convertFiles(e.tar
 ["dragleave","drop"].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove("over"); }));
 dropZone.addEventListener("drop", e => { if (e.dataTransfer.files.length) convertFiles(e.dataTransfer.files); });
 
+let currentUrls = [];   // blob URLs from the previous conversion, revoked on a new drop
+let zipFiles = [];      // [{ name, blob }] for the Download-all-as-ZIP button
+
 async function convertFiles(fileList) {
   const results = $("dropResults"), summary = $("dropSummary");
+  // clear previous conversion: results, zip button, and old blob URLs
   results.innerHTML = "";
+  $("zipBtn").classList.add("hidden");
+  for (const u of currentUrls) URL.revokeObjectURL(u);
+  currentUrls = [];
+  zipFiles = [];
   summary.className = "summary";
   summary.innerHTML = '<span class="spinner"></span>Converting ' + fileList.length + " file(s)…";
 
@@ -180,7 +190,9 @@ async function convertFiles(fileList) {
       }
       ok++;
       for (const f of r.files) {
-        const blobUrl = base64ToUrl(f.data);
+        const { url: blobUrl, blob } = base64ToBlob(f.data);
+        currentUrls.push(blobUrl);
+        zipFiles.push({ name: zipName(f.name), blob });
         results.insertAdjacentHTML("beforeend",
           `<div class="row">
              <div class="grow">
@@ -190,26 +202,58 @@ async function convertFiles(fileList) {
              <span class="saving">${savingPct(r.originalSize, f.size)}</span>
              <a class="dl" href="${blobUrl}" download="${esc(f.name)}">Download</a>
            </div>`);
-        // auto-download each converted file
-        const a = document.createElement("a");
-        a.href = blobUrl; a.download = f.name;
-        document.body.appendChild(a); a.click(); a.remove();
       }
     }
+    if (zipFiles.length > 1) $("zipBtn").classList.remove("hidden");
     summary.className = "summary " + (failed ? "err" : "ok");
-    summary.textContent = `Done — ${ok} converted${failed ? ", " + failed + " failed" : ""}. Files auto-downloaded (also available via the Download links).`;
+    summary.textContent = `Done — ${ok} converted${failed ? ", " + failed + " failed" : ""}. Use the Download links${zipFiles.length > 1 ? " or download everything as a ZIP" : ""}.`;
   } catch (err) {
     summary.className = "summary err";
     summary.textContent = "Error: " + err.message;
   }
 }
 
-function base64ToUrl(b64) {
+function base64ToBlob(b64) {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return URL.createObjectURL(new Blob([bytes], { type: "image/webp" }));
+  const blob = new Blob([bytes], { type: "image/webp" });
+  return { blob, url: URL.createObjectURL(blob) };
 }
+
+// Entries inside one ZIP must have unique names (e.g. logo.png + logo.jpg
+// both become logo.webp) — suffix duplicates with a counter.
+function zipName(name) {
+  const used = new Set(zipFiles.map((f) => f.name.toLowerCase()));
+  let candidate = name, i = 2;
+  while (used.has(candidate.toLowerCase())) {
+    const dot = name.lastIndexOf(".");
+    candidate = name.slice(0, dot) + "-" + i + name.slice(dot);
+    i++;
+  }
+  return candidate;
+}
+
+$("zipBtn").onclick = async () => {
+  const btn = $("zipBtn");
+  btn.disabled = true;
+  const oldText = btn.textContent;
+  btn.textContent = "Preparing ZIP…";
+  try {
+    const zip = new JSZip();
+    for (const f of zipFiles) zip.file(f.name, f.blob);
+    // webp is already compressed — store without recompressing
+    const blob = await zip.generateAsync({ type: "blob", compression: "STORE" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "converted-webp.zip";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = oldText;
+  }
+};
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 }

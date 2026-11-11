@@ -26,7 +26,7 @@ Then open **http://localhost:3000** in your browser. Keep the terminal window op
 ## How to use
 
 ### Drag & Drop tab
-Drop one or more images onto the page (or click to pick files). Each converted `.webp` downloads automatically, and the page shows original vs. new size with the % saved. There are also per-file Download links if you miss the auto-download.
+Drop one or more images onto the page (or click to pick files). The page shows original vs. new size with the % saved, with a Download link per file. When there is more than one output, a **Download all as ZIP** button appears. Dropping new images clears the previous results.
 
 ### Bulk Folder tab
 1. Enter the **input folder** path (e.g. `C:\Users\<you>\Pictures\originals`).

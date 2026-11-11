@@ -11,6 +11,7 @@ const upload = multer({
 });
 
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/vendor", express.static(path.join(__dirname, "node_modules/jszip/dist")));
 app.use(express.json());
 
 // ---- Drag & drop: convert uploaded files, return results as base64 ----

@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "express": "^4.21.2",
+    "jszip": "^3.10.2",
     "multer": "^2.5.0",
     "sharp": "^0.35.5"
   }
